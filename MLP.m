@@ -4,15 +4,8 @@
 % Autor : Alex Alves
 
 function saida = Main()
-   % Matriz de treinamento 
-   %{
-   x = [-1 -1 -1 -1 ; 0 0 1 1 ; 0 1 0 1];
-
-    % valor desejado 
-    d= [0 1 1 0;0 0 0 1];
-   %}
+ 
    x= -4*pi:0.1:4*pi;
-  % x=x/(4*pi);
    for c=1:length(x)
         d(c) = sin(x(c))/x(c);
    end
@@ -24,27 +17,27 @@ function saida = Main()
     n=0.8;  % taxa de treinamento
     a=0.001; % Momento
     epsilon = 0.000000001; % Valor de erro aceitável
-    entradas = 5;
+    entradas = 8;
     saidas =1;
+    camadas = 4;
     %passar pesos 
-    [VetorMSE,pesosCamadaEscondida,PesosCamadaSaida] = Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas);	
+    [VetorMSE,pesosCamadaEscondida,PesosCamadaSaida] = Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas,camadas);	
     % Executa a MLP
-    saida= Executar(x,pesosCamadaEscondida,PesosCamadaSaida);
+    saida= Executar(x,pesosCamadaEscondida,PesosCamadaSaida,camadas);
 end
-function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas)
-   
-    
+function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas,camadas)
+
     [NumeroEntradas,NumeroAamostras] = size(x);
 
     % Adicionando o bias a matriz de entrada
     x = [-1*ones(1,NumeroAamostras);x];
     NumeroEntradas = NumeroEntradas + 1;
     % Camada oculta com 4 neuronios mais o bias
-    pesosCamadaEscondida = rand(entradas,NumeroEntradas); 
+    pesosCamadaEscondida = rand(entradas,NumeroEntradas,camadas);  % Mexe aki
     %2 saídas e 5 entradas vindas da camada escondida além do bias
     PesosCamadaSaida = rand(saidas,entradas+1);
     % Declarando os deltaW
-    pesosAnterirorCamadaEscondida = zeros(entradas,NumeroEntradas);
+    pesosAnterirorCamadaEscondida = zeros(entradas,NumeroEntradas,camadas); % Mexe aki
     pesosAnteriorCamadaSaida = zeros(saidas,entradas+1);
 
     vetorErro = zeros(1,maximo);
@@ -55,9 +48,9 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,entradas,
         x=x(:,MudaOrdem);
        % d=d(:,MudaOrdem);
        
-       d=d(1,MudaOrdem);
+        d=d(1,MudaOrdem);
         % Saida da camda escondida
-        z = sigmf(pesosCamadaEscondida*x,[1 0]);
+        z = sigmf(pesosCamadaEscondida(:,:,camadas)*x,[1 0]);
         % Adicionando bias
         z= [-1*ones(1,NumeroAamostras);z];
         % Saida da camada de saida 
@@ -78,20 +71,23 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,entradas,
             temp = PesosCamadaSaida;
             PesosCamadaSaida = PesosCamadaSaida + DeltaWSaida;  
             pesosAnteriorCamadaSaida= temp;
-            % Ajustes dos pesos da camada oculta
-            % aqui fica o for das camadas escondidas
-            % camada de saida usa a mesma 
-            [so,No] = size(pesosCamadaEscondida);
-            derivadaSigmoide = z.*(1-z);
-            
-            B =PesosCamadaSaida'*produto;  
-            
-            produtoCamdaOculta = derivadaSigmoide.*B; 
-            produtoCamdaOculta= produtoCamdaOculta(2:end,:);
-            DeltaWCamdaEscondida= ((n/No)*(produtoCamdaOculta *x'))+ (a*pesosAnterirorCamadaEscondida);
-            temp = pesosCamadaEscondida;
-            pesosCamadaEscondida = pesosCamadaEscondida +  DeltaWCamdaEscondida;  
-            pesosAnterirorCamadaEscondida= temp;
+            for u=1:camadas
+                % Ajustes dos pesos da camada oculta
+                % aqui fica o for das camadas escondidas
+                % camada de saida usa a mesma 
+                [so,No,s1] = size(pesosCamadaEscondida);
+                derivadaSigmoide = z.*(1-z);
+
+                B =PesosCamadaSaida'*produto;  
+                
+                produtoCamdaOculta = derivadaSigmoide.*B; 
+                produtoCamdaOculta= produtoCamdaOculta(2:end,:);
+                DeltaWCamdaEscondida= ((n/No)*(produtoCamdaOculta *x'))+ (a*pesosAnterirorCamadaEscondida(:,:,u));
+                         
+                temp = pesosCamadaEscondida(:,:,u);
+                pesosCamadaEscondida(:,:,u) = pesosCamadaEscondida(:,:,u) +  DeltaWCamdaEscondida;  
+                pesosAnterirorCamadaEscondida(:,:,u)= temp;
+            end
         end
         i =i +1;
     end    
@@ -108,15 +104,18 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,entradas,
  
 
 end
-function  y= Executar(x,pesosCamadaEscondida,PesosCamadaSaida)
+function  y= Executar(x,pesosCamadaEscondida,PesosCamadaSaida,camadas)
+
    [NumeroEntradas,NumeroAamostras] = size(x);
     x = [-1*ones(1,NumeroAamostras);x];
     % Saida da camda escondida
-    z = sigmf(pesosCamadaEscondida*x,[1 0]);
+
+    z = sigmf(pesosCamadaEscondida(:,:,camadas)*x,[1 0]);
     % Adicionando bias
     z= [-1*ones(1,NumeroAamostras);z];
     % Saida da camada de saida 
     y= sigmf(PesosCamadaSaida*z,[1 0]);
+    
     figure
     plot(y);
 end
