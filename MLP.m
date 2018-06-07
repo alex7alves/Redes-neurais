@@ -13,7 +13,7 @@ function saida = Main()
    figure
    plot(d);
     i=1;
-    maximo =5000; % Número máximo de iterações
+    maximo =25000; % Número máximo de iterações
     n=0.8;  % taxa de treinamento
     a=0.001; % Momento
     epsilon = 0.000000001; % Valor de erro aceitável
@@ -21,11 +21,11 @@ function saida = Main()
     saidas =1;
     camadas = 4;  % numero cadas escondida
     %passar pesos 
-    [VetorMSE,pesosCamadaEscondida,PesosCamadaSaida] = Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas,camadas);	
+    [VetorMSE,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida] = Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas,camadas);	
     % Executa a MLP
-    saida= Executar(x,pesosCamadaEscondida,PesosCamadaSaida,camadas);
+    saida= Executar(x,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida,camadas);
 end
-function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios, maximo, epsilon,i,saidas,camadas)
+function [vetY,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios, maximo, epsilon,i,saidas,camadas)
 
     [NumeroEntradas,NumeroAamostras] = size(x);
 
@@ -50,21 +50,17 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios
         % Muda a ordem das colunas - pra treinar melhor a MLP
         MudaOrdem = randperm(NumeroAamostras);
         x=x(:,MudaOrdem);
-       % d=d(:,MudaOrdem);
-       
+        % d=d(:,MudaOrdem);
         d=d(1,MudaOrdem);
         z = sigmf(pesosCamadaEntrada*x,[1 0]);
         zCamadaEscondida = [-1*ones(1,NumeroAamostras);z];
-        disp(size(z));
         %forward/propagation
         for u=1:camadas          
                  zCamadaEscondida = sigmf(pesosCamadaEscondida(:,:,u)*zCamadaEscondida,[1 0]);
                  zCamadaEscondida = [-1*ones(1,NumeroAamostras); zCamadaEscondida];
                  zlayer(:,:,u)= zCamadaEscondida;
         end
-        
-        % Adicionando bias
-     %   z= [-1*ones(1,NumeroAamostras);z];
+
         % Saida da camada de saida 
         y= sigmf(PesosCamadaSaida*zCamadaEscondida,[1 0]); %linear
         % Calculo do erro
@@ -90,8 +86,6 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios
             B =PesosCamadaSaida'*produto;   %9x1 vs 1x252 = 9vs252 
             
             [so,No,s1] = size(pesosCamadaEscondida);
-           % produtoCamdaOculta = derivadasigmoideCamadasEntradas.*B;
-          %  produtoCamdaOculta=zeros(neuronios+1,NumeroAamostras);
             for u=camadas:-1:1
                 
                 derivadasigmoideCamadasEntradas= zlayer(:,:,u).*(1-zlayer(:,:,u));
@@ -133,17 +127,23 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios
  
 
 end
-function  y= Executar(x,pesosCamadaEscondida,PesosCamadaSaida,camadas)
+function  y= Executar(x,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida,camadas)
 
    [NumeroEntradas,NumeroAamostras] = size(x);
     x = [-1*ones(1,NumeroAamostras);x];
     % Saida da camda escondida
     
-    z = sigmf(pesosCamadaEscondida(:,:,camadas-1)*x,[1 0]);
-    % Adicionando bias
-    z= [-1*ones(1,NumeroAamostras);z];
-    % Saida da camada de saida 
-    y= sigmf(PesosCamadaSaida*z,[1 0]);
+    z = sigmf(pesosCamadaEntrada*x,[1 0]);
+    zCamadaEscondida = [-1*ones(1,NumeroAamostras);z];
+
+    for u=1:camadas           
+        zCamadaEscondida = sigmf(pesosCamadaEscondida(:,:,u)*zCamadaEscondida,[1 0]);
+        zCamadaEscondida = [-1*ones(1,NumeroAamostras); zCamadaEscondida];
+        zlayer(:,:,u)= zCamadaEscondida;
+    end
+        
+     % Saida da camada de saida 
+     y= sigmf(PesosCamadaSaida*zCamadaEscondida,[1 0]); %linear
     
     figure
     plot(y);
