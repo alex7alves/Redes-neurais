@@ -32,18 +32,18 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios
     % Adicionando o bias a matriz de entrada
     x = [-1*ones(1,NumeroAamostras);x];
     NumeroEntradas = NumeroEntradas + 1;
-    % Camada oculta com 4 neuronios mais o bias
+    % Camada de entrada
     pesosCamadaEntrada = rand(neuronios,NumeroEntradas); 
-    % Camadas escondidas depois da 
-    pesosCamadaEscondida = rand(neuronios,neuronios+1,camadas);  % da entrada até 
+    % Camadas escondidas 
+    pesosCamadaEscondida = rand(neuronios,neuronios+1,camadas);  
     %2 saídas e 5 entradas vindas da camada escondida além do bias
     PesosCamadaSaida = rand(saidas,neuronios+1);
     % Declarando os deltaW
     pesosAnterirorCamadaEntrada =zeros(neuronios,NumeroEntradas);
-    pesosAnterirorCamadaEscondida = zeros(neuronios,neuronios,camadas); % Mexe aki
+    pesosAnterirorCamadaEscondida = zeros(neuronios,neuronios+1,camadas);
     pesosAnteriorCamadaSaida = zeros(saidas,neuronios+1);
     
-    zlayer= zeros(saidas,NumeroAamostras,camadas-2); % so as internas sem saida nem entrada
+    zlayer= zeros(neuronios+1,NumeroAamostras,camadas);
     vetorErro = zeros(1,maximo);
 
     while i < maximo 
@@ -60,6 +60,7 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios
         for u=1:camadas          
                  zCamadaEscondida = sigmf(pesosCamadaEscondida(:,:,u)*zCamadaEscondida,[1 0]);
                  zCamadaEscondida = [-1*ones(1,NumeroAamostras); zCamadaEscondida];
+                 zlayer(:,:,u)= zCamadaEscondida;
         end
         
         % Adicionando bias
@@ -79,70 +80,43 @@ function [vetY,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios
             [s,N] = size(PesosCamadaSaida);
             derivadaSigmoide = y.*(1-y);
             produto =  derivadaSigmoide.*E;  % produto ponto a ponto   1x252
-            DeltaWSaida = ((n/N)*produto *z') + (a*pesosAnteriorCamadaSaida);  %1x9
+            DeltaWSaida = ((n/N)*produto *zlayer(:,:,camadas)') + (a*pesosAnteriorCamadaSaida);  %1x9
             temp = PesosCamadaSaida;
             PesosCamadaSaida = PesosCamadaSaida + DeltaWSaida;  
             pesosAnteriorCamadaSaida= temp;   %1x9
             
             %Backpropagation das camadas internas
-           
-            z = PesosCamadaSaida'*derivadaSigmoide; %9x1 1x252
-           % z=aux(2:end,:);
-            derivadaSigmoide = z.*(1-z);   %9x252
-            disp(size(derivadaSigmoide))
-             %B =PesosCamadaSaida'*produto;
-            % B =PesosCamadaSaida*produto;
-            B =PesosCamadaSaida'*produto;
-            
-           % produtoCamdaOculta = derivadaSigmoide.*B; 
-           produtoCamdaOculta = derivadaSigmoide.*B; 
-            produtoCamdaOculta= produtoCamdaOculta(2:end,:);
-                %Corrigir ai pegar o z ou peso da entrada(na camada 1)  da
-                %entrada anterior. To na 4 pega o z da 3
-              
-                DeltaWCamdaEscondida= ((n/No)*(produtoCamdaOculta *x'))+ (a*pesosAnterirorCamadaEscondida(:,:,u));
-                         
-                temp = pesosCamadaEscondida(:,:,camadas-1);
-                pesosCamadaEscondida(:,:,camadas-1) = pesosCamadaEscondida(:,:,camadas-1) +  DeltaWCamdaEscondida;  
-                pesosAnterirorCamadaEscondida(:,:,camadas-1)= temp;
-           %  B=B(2:end,:);
-            % disp(size(B))
-            for u=camadas-1:-1:1
-                if u<(camadas-1)
-                    if mod(u,2)==0
-                        % DUVIDA 
-                        disp(size(derivadaSigmoide))
-                         z=pesosCamadaEscondida(:,:,u)'*derivadaSigmoide;
-                         derivadaSigmoide = z.*(1-z);
-                       %  derivadaSigmoide  = sigmf(pesosCamadaEscondida(:,:,u)'*derivadaSigmoide ,[1 0]);
-                    else
-                        disp('passou aki')
-                         z=pesosCamadaEscondida(:,:,u)*derivadaSigmoide;
-                         derivadaSigmoide = z.*(1-z);
-                       % derivadaSigmoide  = sigmf(pesosCamadaEscondida(:,:,u)*derivadaSigmoide ,[1 0]);
-                    end
-                     % DUVIDA 
-                     B = pesosCamadaEscondida*z;
-                else
-                    
-                   % B =PesosCamadaSaida'*produto;
-                   
-                end
 
-                [so,No,s1] = size(pesosCamadaEscondida);
+            B =PesosCamadaSaida'*produto;   %9x1 vs 1x252 = 9vs252 
             
+            [so,No,s1] = size(pesosCamadaEscondida);
+           % produtoCamdaOculta = derivadasigmoideCamadasEntradas.*B;
+          %  produtoCamdaOculta=zeros(neuronios+1,NumeroAamostras);
+            for u=camadas:-1:1
                 
-                produtoCamdaOculta = derivadaSigmoide.*B; 
-                produtoCamdaOculta= produtoCamdaOculta(2:end,:);
-                %Corrigir ai pegar o z ou peso da entrada(na camada 1)  da
-                %entrada anterior. To na 4 pega o z da 3
+                derivadasigmoideCamadasEntradas= zlayer(:,:,u).*(1-zlayer(:,:,u));
+                if u==camadas
+                    produtoCamdaOculta = derivadasigmoideCamadasEntradas.*B;
+                else
+                    produtoCamdaOculta = derivadasigmoideCamadasEntradas.*produtoCamdaOculta;
+                end
+                 
+                produtoCamdas= produtoCamdaOculta(2:end,:);
               
-                DeltaWCamdaEscondida= ((n/No)*(produtoCamdaOculta *x'))+ (a*pesosAnterirorCamadaEscondida(:,:,u));
-                         
-                temp = pesosCamadaEscondida(:,:,u);
-                pesosCamadaEscondida(:,:,u) = pesosCamadaEscondida(:,:,u) +  DeltaWCamdaEscondida;  
-                pesosAnterirorCamadaEscondida(:,:,u)= temp;
+                if u>1
+                    DeltaWCamdaEscondida= ((n/No)*(produtoCamdas *zlayer(:,:,u-1)'))+ (a*pesosAnterirorCamadaEscondida(:,:,u));
+                    temp = pesosCamadaEscondida(:,:,u);
+                    pesosCamadaEscondida(:,:,u) = pesosCamadaEscondida(:,:,u) +  DeltaWCamdaEscondida;  
+                    pesosAnterirorCamadaEscondida(:,:,u)= temp;
+                else
+                    DeltaWCamdaEscondida= ((n/No)*(produtoCamdas *x'))+ (a* pesosAnterirorCamadaEntrada);
+                    temp = pesosCamadaEntrada;
+                    pesosCamadaEntrada = pesosCamadaEntrada +  DeltaWCamdaEscondida;  
+                    pesosAnterirorCamadaEntrada= temp;
+
+                end
             end
+            
         end
         i =i +1;
     end    
@@ -164,7 +138,7 @@ function  y= Executar(x,pesosCamadaEscondida,PesosCamadaSaida,camadas)
    [NumeroEntradas,NumeroAamostras] = size(x);
     x = [-1*ones(1,NumeroAamostras);x];
     % Saida da camda escondida
-
+    
     z = sigmf(pesosCamadaEscondida(:,:,camadas-1)*x,[1 0]);
     % Adicionando bias
     z= [-1*ones(1,NumeroAamostras);z];
