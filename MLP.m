@@ -20,7 +20,8 @@ function saida = Main()
    plot(d);
    disp(d(1,239:252));
     i=1;
-    maximo =10000; % Número máximo de iterações
+    maximo =5000; % Número máximo de iterações
+    %{
     n=0.5;  % taxa de treinamento
     a=0.001; % Momento
     epsilon = 0.000000001; % Valor de erro aceitável
@@ -28,10 +29,20 @@ function saida = Main()
     saidas =1;
     camadas = 2;  % numero cadas escondida
     p=0.041;  % pra função atan
+   tipo=3;
+    %}
+    n=0.09;  % taxa de treinamento
+    a=0.001; % Momento
+    epsilon = 0.000000001; % Valor de erro aceitável
+    entradas = 4;
+    saidas =1;
+    camadas = 1;  % numero cadas escondida
+    p=1;  % pra função atan
     tipo=3;
     %passar pesos 
     [VetorMSE,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida] = Treinar(x,d,n,a,entradas, maximo, epsilon,i,saidas,camadas,p,tipo);	
     % Executa a MLP
+   % saida=1;
     saida= Executar(x,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida,camadas,p,tipo);
 end
 function [vetY,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida]= Treinar(x,d,n,a,neuronios, maximo, epsilon,i,saidas,camadas,p,tipo)
@@ -61,7 +72,7 @@ function [vetY,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida]= Treina
         % Muda a ordem das colunas - pra treinar melhor a MLP
         MudaOrdem = randperm(NumeroAamostras);
         x=x(:,MudaOrdem);
-        % d=d(:,MudaOrdem);
+       %  d=d(:,MudaOrdem);
         d=d(1,MudaOrdem);
         z=funcao(p,pesosCamadaEntrada,x,tipo);
         zCamadaEscondida = [-1*ones(1,NumeroAamostras);z];
@@ -85,8 +96,7 @@ function [vetY,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida]= Treina
             %backpropagation
             % Ajustes dos pesos da camda de saida 
             [s,N] = size(PesosCamadaSaida);
-           % derivadaSigmoide = y.*(1-y);
-           derivadaSigmoide = p./(1+(y.^2));
+            derivadaSigmoide = Derivada(p,y,tipo);
             produto =  derivadaSigmoide.*E;  % produto ponto a ponto   1x252
            % DeltaWSaida = ((n/N)*produto *zlayer(:,:,camadas)') + (a*pesosAnteriorCamadaSaida);  %1x9
             DeltaWSaida = ((n)*produto *zlayer(:,:,camadas)') + (a*pesosAnteriorCamadaSaida);  %1x9
@@ -100,9 +110,8 @@ function [vetY,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida]= Treina
             
             [so,No,s1] = size(pesosCamadaEscondida);
             for u=camadas:-1:1
-                
-               %  derivadasigmoide= zlayer(:,:,u).*(1-zlayer(:,:,u));
-                derivadasigmoide= p./(1+(zlayer(:,:,u)).^2);
+
+                derivadasigmoide = Derivada(p,zlayer(:,:,u),tipo);
                 if u==camadas
                     produtoCamdaOculta = derivadasigmoide.*B;
                 else
@@ -140,7 +149,8 @@ function [vetY,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida]= Treina
     end
     figure
     plot(v, vetY);
- 
+    figure
+    plot(y);
 
 end
 function  y= Executar(x,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida,camadas,p,tipo)
@@ -151,13 +161,14 @@ function  y= Executar(x,pesosCamadaEntrada,pesosCamadaEscondida,PesosCamadaSaida
     z= funcao(p,pesosCamadaEntrada,x,tipo);
     zCamadaEscondida = [-1*ones(1,NumeroAamostras);z];
 
-    for u=1:camadas           
+    for u=1:camadas    
+
         zCamadaEscondida=funcao(p,pesosCamadaEscondida(:,:,u),zCamadaEscondida,tipo);
         zCamadaEscondida = [-1*ones(1,NumeroAamostras); zCamadaEscondida];
     end
         
     % Saida da camada de saida 
-    y= funcao(p,PesosCamadaSaida,zCamadaEscondid,tipo);   
+    y= funcao(p,PesosCamadaSaida,zCamadaEscondida,tipo);   
     figure
     plot(y);
 end
@@ -173,5 +184,20 @@ function w= funcao(p,wp,f,tipo)
         w=tanh(p*wp*f);
    else 
        w= sigmf(wp*f,[1 -1]);
+   end
+end
+
+
+function w= Derivada(p,wp,tipo)
+
+    if tipo==1
+        w= wp.*(1-wp);
+        
+    elseif tipo==2
+       w = p./(1+(wp.^2));
+    elseif tipo==3    
+        w= p.*(1-(wp.^2));
+   else 
+       w= wp.*(1-wp);
    end
 end
